@@ -20,35 +20,41 @@ api.post('/upload', (req, res) => {
   })
 
   form.on('file', (fieldname, file, filename, encoding, mimetype) => {
+    // We pass our file stream to gm for image processing.
+    // We have to call `stream` to ensure we get a stream back.
+    const stream = gm(file)
+      .resize(200, 200)
+      .noise('laplacian')
+      .monochrome()
+      .stream()
 
-    // Our stream processing does not begin untill the
-    // on `data` event is called.
+    // I'm cheating here by using a pre-created bucket
+    // this would usally be something you pull from a datastore
+    // or you request from s3.
+    const bucket = process.env.BUCKET
+
+    // access control list(acl) is what specifys the permissions
+    // on the file we are uploading to s3
+    const acl = 'public-read'
+    const promise = upload(bucket, stream, filename, mimetype, acl)
+
+    // keep a list of all our request promises to s3
+    // this way we can handle them all at once when the
+    // form upload triggers it's `finish` event
+    uploads.push(promise)
+
+    // ** stream events **
+
+    // File is a readable stream and is an implementation
+    // of `EventEmitter` and has a few events for us.
+
+    // Our stream processing does not begin until the
+    // on `data` event is called. The function is called
+    // by the AWS sdk when it needs to read our file and
+    // pass the data to it's writable stream for file uploading
     file.on('data', (data) => {
-
-      // As we recieve data from our file stream
-      // we are going to pass it through an image
-      // processing library to alter the image
-      // and get a stream back out.
-      const stream = gm(data)
-        // .resize(200, 200)
-        // .noise('laplacian')
-        // .monochrome()
-        .stream()
-
-      // I'm cheating here by using a pre-created bucket
-      // this would usally be something you pull from a datastore
-      // or you request from s3.
-      const bucket = process.env.BUCKET
-
-      // access control list(acl) is what specifys the permissions
-      // on the file we are uploading to s3
-      const acl = 'public-read'
-      const promise = upload(bucket, stream, filename, mimetype, acl)
-
-      // keep a list of all our request promises to s3
-      // this way we can handle them all at once once the
-      // form upload triggers it's `finish` event
-      uploads.push(promise)
+      // logging for example purposes
+      console.log(data)
     })
 
     // This event is triggered once all the contents of
@@ -60,7 +66,7 @@ api.post('/upload', (req, res) => {
     })
   })
 
-  // We are going to ingnore fields for this example but
+  // We are going to ignore fields for this example but
   // you could easly post extra data along with a file
   // and handle it here
   form.on('field', (fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) => {})
