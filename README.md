@@ -49,3 +49,8 @@ When we post a file to our storage provider we will need to specify an acl. The 
 
 ## Streams 2 vs 3
 An important history item to be aware of is that there are two versions of the stream API. Most packages should be using the latest, streams 3, but it's important to be aware of if you experience inconsitent behavior using a package. 
+
+__Notes__
+
+Missing the end of your file?
+The connection to your provider was closed before the data finished writing. Usally an asynchronous timing issue or imporperly ending a stream.
