@@ -1,15 +1,29 @@
 # Stream a Little Stream with Me
-## Streaming an image from the browser to S3
+__How to stream a file upload from the browser to S3__
 
----
+## Prerequiste
 
-__Why streaming?__
+- aws account
+- permissions configured
+  - access id
+  - access secret
+- bucket
 
-Streams allow us to handle file uploads without touching are server disks. What this means is we will not need space intensive servers as well as we receive a performance boon from not doing I/O and handling each stream asynchronously.
+## Why streaming?
+
+There are 2 major reasons you should be streaming your file uploads.
+
+### Performance
+The performance implications of streaming are threefold; avoiding disk I/O, reduce memory consumption and throttling.
+
+### Costs
+
+Streams allow us to handle file uploads without saving files to our servers hard drive. What this means is we will not need disk space intensive servers as well as receive a performance boon from not doing I/O and handling each stream asynchronously.
+
 
 ## File Upload
 
-The first thing we need is a file upload. This will be a multipart form submission. We are going to do this old school since the newier `fetch` api does not provide a progress event.
+The first thing we need is a form to handle our file upload. This will be a multipart form submission. We are going to do this old school since the newier `fetch` api does not provide a progress event.
 
 ```
 const URL = 'TODO ADD URL'
@@ -44,6 +58,15 @@ xhr.open('POST', URL)
 xhr.send(form)
 
 ```
+
+## Preflight
+
+// TODO Explain preflight
+// * I hit a roadblock here trying to figure out which headers need to
+// be preflighted in order to handle a cors request
+// * start by looking at the request from your browser and see what headers
+// it requesting
+
 
 ## Handling the incoming upload stream
 
@@ -82,6 +105,13 @@ server.post('/upload', (req, res) => {
 
 ```
 
+## Multi-part body parsing
+
+## Mimetype
+// TODO explain mimetypes
+// and why you need to ensure they get set properly
+// e.g. you don't want a file download
+
 ## Passing file stream to S3 API
 
 Separating our AWS S3 logic into a module for Node points and to separate the logic steps that are occuring.
@@ -93,6 +123,7 @@ const s3 = new AWS.S3()
 module.exports = function (file) {
 
 
-
 }
 ```
+
+// TODO explain on data, required to start stream
