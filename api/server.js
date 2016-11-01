@@ -25,9 +25,14 @@ api.post('/upload', (req, res) => {
     // on `data` event is called.
     file.on('data', (data) => {
 
-      const stream = gm(data, filename)
-        .resize(353, 257)
-        .autoOrient()
+      // As we recieve data from our file stream
+      // we are going to pass it through an image
+      // processing library to alter the image
+      // and get a stream back out.
+      const stream = gm(data)
+        // .resize(200, 200)
+        // .noise('laplacian')
+        // .monochrome()
         .stream()
 
       // I'm cheating here by using a pre-created bucket
