@@ -1,129 +1,51 @@
 # Stream a Little Stream with Me
-__How to stream a file upload from the browser to S3__
+_How to stream a file upload from the browser to S3 using node.js._
 
-## Prerequiste
+__Prerequisites__
 
 - aws account
-- permissions configured
+- user/role with permissions configured
   - access id
   - access secret
-- bucket
+- s3 bucket
 
-## Why streaming?
+## Why Streaming
+Probably the largest reason you should be considering using streams is _performance_. The performance of streams are two fold;
 
-There are 2 major reasons you should be streaming your file uploads.
+- Avoiding disk I/O
+- Lower memory consumption
 
-### Performance
-The performance implications of streaming are threefold; avoiding disk I/O, reduce memory consumption and throttling.
+### Avoiding disk I/O
+Using a stream allows us to avoid temporarly writing the uploaded file to our server's disk. This not only avoids the costs of writing the file but also reduces the disk size of our service servers. As well as reduces complexity of dealing with clean code to ensure temp files are properly removed.
 
-### Costs
+### Lower memory consumption
+Streams work by buffering only the current data they are dealing with. How much is buffered is also a configurable value.
 
-Streams allow us to handle file uploads without saving files to our servers hard drive. What this means is we will not need disk space intensive servers as well as receive a performance boon from not doing I/O and handling each stream asynchronously.
+> (The amount of data potentially buffered depends on the highWaterMark option passed into the streams constructor.)[https://nodejs.org/api/stream.html#stream_buffering]
 
+Since we only buffer the data being dealt with a larger, say 200mb file, does not have to be fully buffered and allocate that memory.
 
-## File Upload
+## Handling Preflight
+Since we will be initiating a CORS (Cross-Origin Resource Sharing) request we will need to deal with browser preflighting. A preflight request is when the browser sends an `OPTIONS` request before the actual request. It consists of headers telling the service what it's about to request. The server can then inspect these headers and respond appropriately.
 
-The first thing we need is a form to handle our file upload. This will be a multipart form submission. We are going to do this old school since the newier `fetch` api does not provide a progress event.
-
-```
-const URL = 'TODO ADD URL'
-
-let xhr = new XMLHttpRequest()
-let form = new FormData()
-
-// TODO where is the file coming from?
-form.append('file', file)
-
-xhr.onreadystatechange = () => {
-  if (xhr.readyState === XMLHttpRequest.OPENED) {
-  	// UPLOADING
-  }
-
-  if (xhr.readyState == XMLHttpRequest.DONE) {
-    const json = JSON.parse(xhr.responseText)
-
-    if (/200|201/.test(json.code)) {
-			// UPLOAD DONE
-    } else {
-    	// SOME THING ELSE HAPPENED
-    }
-  }
-}
-
-xhr.upload.addEventListener('progress', (evt) => {})
-xhr.upload.addEventListener('abort', (evt) => {})
-xhr.upload.addEventListener('error', (evt) => {})
-
-xhr.open('POST', URL)
-xhr.send(form)
-
-```
-
-## Preflight
-
-// TODO Explain preflight
-// * I hit a roadblock here trying to figure out which headers need to
-// be preflighted in order to handle a cors request
-// * start by looking at the request from your browser and see what headers
-// it requesting
-
-
-## Handling the incoming upload stream
-
-Now that we have a multipart POST we need to prepair our server to handle the request.
-
-```
-const express = require('express')
-const busboy = require('busboy')
-const ourS3WrapperModule = require('')
-
-const server = express()
-
-server.post('/upload', (req, res) => {
-	let form = new busboy({
-    headers: req.headers
-  })
-
-  form.on('error', (err) => {
-  	res.status(500).end()
-  })
-  form.on('field', (fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) => {
-  	// We are ignoring fields
-  })
-  form.on('file', (fieldname, file, fileName, encoding, mimetype) => {
-  	// TODO post `file` stream to S3
-  })
-  form.on('finish', () => {
-  	res.status(201).end()
-  })
-
-	// THIS IS THE STREAM!!!
-	// So `req` is a readable stream which the `form` busboy instance
-	// reads and then in the `file` event above it passes a `file` readable stream handle.
-  req.pipe(form)
-})
-
-```
+_This is one of those details I always forget about untill I bump into it._
 
 ## Multi-part body parsing
+Since this is going to be a file upload it will have a multi-part body. This is important to note that way we pick an appropriate express body parser. We are going to use `busboy` since it will give us a proper readable stream.
 
-## Mimetype
-// TODO explain mimetypes
-// and why you need to ensure they get set properly
-// e.g. you don't want a file download
+Multi-part body parsing can be expensive and not as friendly to work with. Generally nice to avoid unless dealing with file uploads.
 
-## Passing file stream to S3 API
+## Types of Streams
+Node provides us four types of streams; Readable, Writable Duplex (both readable and writable) and Transform streams. One of the greatest things about streams is that they handle the buffer and flow control for internally for you. This means as a stream consumer you don't have to worry about back pressure.
 
-Separating our AWS S3 logic into a module for Node points and to separate the logic steps that are occuring.
+## Mimetypes
+When dealing with file uploads it's very important to determine the mimetype and ensure it's properly set with in your storage provider as a ContentType. The ContentType of a file is what is used to inform the browser how to handle it. When you don't have your ContentType set properly usually it will be defaulted to an `Octet-stream`. For something like an image this when then trigger the browser to download it instead if displaying the image.
 
-```
-const AWS = require('aws-sdk')
-const s3 = new AWS.S3()
+### Magic Number
+These are the first few characters of a file which can be used to determine it's mimetype. We are using the `busboy` package which determines the mimetype for you but if you wanted to you could read the first few characters of your stream and determine the mimetype yourself via the magic number.
 
-module.exports = function (file) {
+## Access Control List (acl)
+When we post a file to our storage provider we will need to specify an acl. The acl is what determines the permissions on the file. In our case we want these to be publicly readable so we set the AWS acl of `public-read`. We could also make these private if they are not intended to be served out of the s3 bucket.
 
-
-}
-```
-
-// TODO explain on data, required to start stream
+## Streams 2 vs 3
+An important history item to be aware of is that there are two versions of the stream API. Most packages should be using the latest, streams 3, but it's important to be aware of if you experience inconsitent behavior using a package. 
